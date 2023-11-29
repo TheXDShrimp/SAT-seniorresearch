@@ -1,4 +1,5 @@
 import olympe
+import time
 from olympe.messages.ardrone3.Piloting import TakeOff, Landing, moveBy
 from olympe.messages.ardrone3.PilotingState import (
     PositionChanged,
@@ -23,14 +24,15 @@ class FlightListener(olympe.EventListener):
         )
 
 
-drone = olympe.Drone("10.202.0.1")
+drone = olympe.Drone("192.168.42.1")
 with FlightListener(drone):
     drone.connect()
     drone(
         FlyingStateChanged(state="hovering")
         | (TakeOff() & FlyingStateChanged(state="hovering"))
     ).wait()
-    # drone(moveBy(10, 0, 0, 0)).wait()
+    time.sleep(1)
+    drone(moveBy(1, 0, 0, 0)).wait()
     drone(Landing()).wait()
     drone(FlyingStateChanged(state="landed")).wait()
     drone.disconnect()

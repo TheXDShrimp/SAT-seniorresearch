@@ -15,13 +15,16 @@ def test_takeoff():
     drone.disconnect()
     
 def move_forward():
-    distance = 5
+    distance = 0.5
     duration = 2
+
 
     drone = olympe.Drone(DRONE_IP)
     drone.connect()
+
     # Move the drone forward
     assert drone(TakeOff()).wait().success()
+    time.sleep(3)
     assert drone(moveBy(distance, 0, 0, 0)).wait().success()
     time.sleep(duration)
     assert drone(Landing()).wait().success()
@@ -30,6 +33,6 @@ def move_forward():
 
 
 if __name__ == "__main__":
-    test_takeoff()
+    # test_takeoff()
 
-    move_forward()
+    # move_forward()
