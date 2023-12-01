@@ -12,6 +12,9 @@ def main():
     
     try:
         assert drone(TakeOff()).wait().success()
+        time.sleep(3)
+        
+        assert drone(moveBy(1, 0, 0, 0)).wait().success()
         time.sleep(1)
         
     finally:
