@@ -7,7 +7,7 @@ import csv
 import math
 import os
 import queue
-import shlex
+# import shlex
 import subprocess
 import tempfile
 import threading
@@ -23,7 +23,7 @@ from olympe.messages.ardrone3.GPSSettingsState import GPSFixStateChanged
 
 olympe.log.update_config({"loggers": {"olympe": {"level": "WARNING"}}})
 
-DRONE_IP = os.environ.get("DRONE_IP", "192.168.53.1")
+DRONE_IP = "192.168.53.1"
 DRONE_RTSP_PORT = os.environ.get("DRONE_RTSP_PORT")
 
 
@@ -42,10 +42,12 @@ class StreamingExample:
         self.frame_queue = queue.Queue()
         self.processing_thread = threading.Thread(target=self.yuv_frame_processing)
         self.renderer = None
+        
+        print("Init complete")
 
     def start(self):
         # Connect to drone
-        assert self.drone.connect(retry=3)
+        assert self.drone.connect()
 
         if DRONE_RTSP_PORT is not None:
             self.drone.streaming.server_addr = f"{DRONE_IP}:{DRONE_RTSP_PORT}"
@@ -88,6 +90,7 @@ class StreamingExample:
             :type yuv_frame: olympe.VideoFrame
         """
         yuv_frame.ref()
+        print(yuv_frame)
         self.frame_queue.put_nowait(yuv_frame)
 
     def yuv_frame_processing(self):

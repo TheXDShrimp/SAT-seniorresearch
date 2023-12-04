@@ -20,7 +20,7 @@ SKYCTRL_IP = os.environ.get("SKYCTRL_IP", "192.168.53.1")
 class StreamingExample:
     def __init__(self):
         # Create the olympe.Drone object from its IP address
-        self.skyctrl = olympe.SkyController4(SKYCTRL_IP)
+        self.skyctrl = olympe.SkyController3(SKYCTRL_IP)
         self.tempd = tempfile.mkdtemp(prefix="olympe_streaming_test_")
         print(f"Olympe streaming example output dir: {self.tempd}")
         self.h264_frame_stats = []
@@ -132,7 +132,12 @@ class StreamingExample:
 
     def fly(self):
         # ...
-        time.sleep(10)
+        try:
+        
+            time.sleep(10)
+        
+        finally:
+            print("Done Recording")
         # ...
 
 
