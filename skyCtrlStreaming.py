@@ -8,6 +8,11 @@ import time
 import olympe
 from olympe.video.renderer import PdrawRenderer
 from olympe.messages.skyctrl.CoPiloting import setPilotingSource
+from olympe.messages.ardrone3.Piloting import TakeOff, moveBy, Landing
+from olympe.messages.ardrone3.PilotingState import FlyingStateChanged
+from olympe.messages.ardrone3.PilotingSettingsState import MaxTiltChanged
+from olympe.messages.ardrone3.GPSSettingsState import GPSFixStateChanged
+from olympe.messages.ardrone3.PilotingSettings import MaxTilt
 
 
 olympe.log.update_config({"loggers": {
@@ -133,12 +138,31 @@ class StreamingExample:
             self.h264_stats_writer.writerow({"fps": h264_fps, "bitrate": h264_bitrate})
 
     def fly(self):
+        print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n Flying....")
+        
         # ...
         try:
-        
+            self.drone(
+                FlyingStateChanged(state="hovering", _policy="check")
+                | FlyingStateChanged(state="flying", _policy="check")
+                | (
+                    GPSFixStateChanged(fixed=1, _timeout=10, _policy="check_wait")
+                    >> (
+                        TakeOff(_no_expect=True)
+                        & FlyingStateChanged(
+                            state="hovering", _timeout=10, _policy="check_wait"
+                        )
+                    )
+                )
+            ).wait()
+            maxtilt = self.drone.get_state(MaxTiltChanged)["max"]
+            self.drone(MaxTilt(maxtilt)).wait()
             time.sleep(10)
         
         finally:
+            print("Landing...")
+            self.drone(Landing() >> FlyingStateChanged(state="landed", _timeout=5)).wait()
+            print("Landed\n")
             print("Done Recording")
         # ...
 
