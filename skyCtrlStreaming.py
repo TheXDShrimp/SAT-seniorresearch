@@ -7,6 +7,7 @@ import time
 
 import olympe
 from olympe.video.renderer import PdrawRenderer
+from olympe.messages.skyctrl.CoPiloting import setPilotingSource
 
 
 olympe.log.update_config({"loggers": {
@@ -21,6 +22,7 @@ class StreamingExample:
     def __init__(self):
         # Create the olympe.Drone object from its IP address
         self.skyctrl = olympe.SkyController3(SKYCTRL_IP)
+        self.skyctrl(setPilotingSource(source="Controller")).wait()
         self.tempd = tempfile.mkdtemp(prefix="olympe_streaming_test_")
         print(f"Olympe streaming example output dir: {self.tempd}")
         self.h264_frame_stats = []
