@@ -14,6 +14,8 @@ from olympe.messages.ardrone3.PilotingSettingsState import MaxTiltChanged
 from olympe.messages.ardrone3.GPSSettingsState import GPSFixStateChanged
 from olympe.messages.ardrone3.PilotingSettings import MaxTilt
 
+endl = "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n "
+
 
 olympe.log.update_config({"loggers": {
     "olympe": {"level": "INFO"},
@@ -138,7 +140,7 @@ class StreamingExample:
             self.h264_stats_writer.writerow({"fps": h264_fps, "bitrate": h264_bitrate})
 
     def fly(self):
-        print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n Flying....")
+        print(endl + "Flying...." + endl)
         
         # ...
         try:
@@ -158,13 +160,14 @@ class StreamingExample:
             maxtilt = self.drone.get_state(MaxTiltChanged)["max"]
             self.drone(MaxTilt(maxtilt)).wait()
             time.sleep(10)
-        
+        except:
+            print(endl + "oh no!" + endl)
+            
         finally:
             print("Landing...")
             self.drone(Landing() >> FlyingStateChanged(state="landed", _timeout=5)).wait()
             print("Landed\n")
             print("Done Recording")
-        # ...
 
 
 def test_streaming():
