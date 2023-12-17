@@ -14,7 +14,19 @@ from olympe.messages.ardrone3.PilotingSettingsState import MaxTiltChanged
 from olympe.messages.ardrone3.GPSSettingsState import GPSFixStateChanged
 from olympe.messages.ardrone3.PilotingSettings import MaxTilt
 
-endl = "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n "
+from ultralytics import YOLO
+# Initialize Global Variables
+CLASS_LABELS = {0: "person", 2: "car", 39: "bottle", 67: "cell phone"}
+def parseBoxesToList(model_result):
+    boxes = model_result[0].boxes
+    parse = list()
+    for i in range(len(boxes)):
+        xy = boxes[i].xyxy[0].tolist()
+        parse.append({'x': xy[0], 'y': xy[1], 'w': xy[2], 'h': xy[3],
+                    'confidence': float(boxes.conf[i]), 'class': int(boxes.cls[i])})
+    return parse
+
+endl = "\n" * 15 + " "
 
 
 olympe.log.update_config({"loggers": {
@@ -32,15 +44,17 @@ class StreamingExample:
         self.skyctrl(setPilotingSource(source="Controller")).wait()
         self.tempd = tempfile.mkdtemp(prefix="olympe_streaming_test_")
         print(f"Olympe streaming example output dir: {self.tempd}")
-        self.h264_frame_stats = []
-        self.h264_stats_file = open(os.path.join(self.tempd, "h264_stats.csv"), "w+")
-        self.h264_stats_writer = csv.DictWriter(
-            self.h264_stats_file, ["fps", "bitrate"]
-        )
-        self.h264_stats_writer.writeheader()
+        # self.h264_frame_stats = []
+        # self.h264_stats_file = open(os.path.join(self.tempd, "h264_stats.csv"), "w+")
+        # self.h264_stats_writer = csv.DictWriter(
+        #     self.h264_stats_file, ["fps", "bitrate"]
+        # )
+        # self.h264_stats_writer.writeheader()
         self.frame_queue = queue.Queue()
         self.processing_thread = threading.Thread(target=self.yuv_frame_processing)
         self.renderer = None
+        
+        self.yolo = YOLO("yolov8n.pt")
 
     def start(self):
         # Connect to drone
@@ -95,6 +109,9 @@ class StreamingExample:
             # You should process your frames here and release (unref) them when you're done.
             # Don't hold a reference on your frames for too long to avoid memory leaks and/or memory
             # pool exhaustion.
+            
+            self.yolo(yuv_frame, verbose=False)
+            
             yuv_frame.unref()
 
     def flush_cb(self, stream):
@@ -110,41 +127,41 @@ class StreamingExample:
     def end_cb(self):
         pass
 
-    def h264_frame_cb(self, h264_frame):
-        """
-        This function will be called by Olympe for each new h264 frame.
+    # def h264_frame_cb(self, h264_frame):
+    #     """
+    #     This function will be called by Olympe for each new h264 frame.
 
-            :type yuv_frame: olympe.VideoFrame
-        """
+    #         :type yuv_frame: olympe.VideoFrame
+    #     """
 
-        # Get a ctypes pointer and size for this h264 frame
-        frame_pointer, frame_size = h264_frame.as_ctypes_pointer()
+    #     # Get a ctypes pointer and size for this h264 frame
+    #     frame_pointer, frame_size = h264_frame.as_ctypes_pointer()
 
-        # For this example we will just compute some basic video stream stats
-        # (bitrate and FPS) but we could choose to resend it over an another
-        # interface or to decode it with our preferred hardware decoder..
+    #     # For this example we will just compute some basic video stream stats
+    #     # (bitrate and FPS) but we could choose to resend it over an another
+    #     # interface or to decode it with our preferred hardware decoder..
 
-        # Compute some stats and dump them in a csv file
-        info = h264_frame.info()
-        frame_ts = info["ntp_raw_timestamp"]
-        if not bool(info["is_sync"]):
-            while len(self.h264_frame_stats) > 0:
-                start_ts, _ = self.h264_frame_stats[0]
-                if (start_ts + 1e6) < frame_ts:
-                    self.h264_frame_stats.pop(0)
-                else:
-                    break
-            self.h264_frame_stats.append((frame_ts, frame_size))
-            h264_fps = len(self.h264_frame_stats)
-            h264_bitrate = 8 * sum(map(lambda t: t[1], self.h264_frame_stats))
-            self.h264_stats_writer.writerow({"fps": h264_fps, "bitrate": h264_bitrate})
+    #     # Compute some stats and dump them in a csv file
+    #     info = h264_frame.info()
+    #     frame_ts = info["ntp_raw_timestamp"]
+    #     if not bool(info["is_sync"]):
+    #         while len(self.h264_frame_stats) > 0:
+    #             start_ts, _ = self.h264_frame_stats[0]
+    #             if (start_ts + 1e6) < frame_ts:
+    #                 self.h264_frame_stats.pop(0)
+    #             else:
+    #                 break
+    #         self.h264_frame_stats.append((frame_ts, frame_size))
+    #         h264_fps = len(self.h264_frame_stats)
+    #         h264_bitrate = 8 * sum(map(lambda t: t[1], self.h264_frame_stats))
+    #         self.h264_stats_writer.writerow({"fps": h264_fps, "bitrate": h264_bitrate})
 
     def fly(self):
         print(endl + "Flying...." + endl)
         
         # ...
         try:
-            self.drone(
+            self.skyctrl(
                 FlyingStateChanged(state="hovering", _policy="check")
                 | FlyingStateChanged(state="flying", _policy="check")
                 | (
@@ -157,15 +174,15 @@ class StreamingExample:
                     )
                 )
             ).wait()
-            maxtilt = self.drone.get_state(MaxTiltChanged)["max"]
-            self.drone(MaxTilt(maxtilt)).wait()
+            maxtilt = self.skyctrl.get_state(MaxTiltChanged)["max"]
+            self.skyctrl(MaxTilt(maxtilt)).wait()
             time.sleep(10)
         except:
             print(endl + "oh no!" + endl)
             
         finally:
             print("Landing...")
-            self.drone(Landing() >> FlyingStateChanged(state="landed", _timeout=5)).wait()
+            self.skyctrl(Landing() >> FlyingStateChanged(state="landed", _timeout=5)).wait()
             print("Landed\n")
             print("Done Recording")
 
